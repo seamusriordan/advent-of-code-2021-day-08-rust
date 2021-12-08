@@ -1,7 +1,7 @@
 use std::ops::{Mul, Sub};
 use nalgebra::{Const, OMatrix, OVector, U1};
 
-fn get_mappings() -> Vec<OMatrix<f32, Const<7>, U1>> {
+fn number_to_matrix_rep_mappings() -> Vec<OMatrix<f32, Const<7>, U1>> {
     vec![
         OVector::<f32, Const<7>>::from_vec(vec![1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0]),
         OVector::<f32, Const<7>>::from_vec(vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0]),
@@ -17,9 +17,9 @@ fn get_mappings() -> Vec<OMatrix<f32, Const<7>, U1>> {
 }
 
 
-fn mult_matrix(m: &OMatrix<f32, Const::<7>, Const::<7>>) -> OMatrix<f32, Const::<7>, Const::<7>> {
+fn get_trial_inverse_decoder(m: &OMatrix<f32, Const::<7>, Const::<7>>) -> OMatrix<f32, Const::<7>, Const::<7>> {
     let mut d = OMatrix::<f32, Const::<7>, Const::<7>>::zeros();
-    let mappings = get_mappings();
+    let mappings = number_to_matrix_rep_mappings();
 
     d.set_column(0, &mappings[0]);
     d.set_column(1, &mappings[1]);
@@ -42,21 +42,21 @@ fn to_col(s: &str) -> OVector<f32, Const::<7>> {
     v
 }
 
-pub fn decode(s: &str, decoder: &OMatrix<f32, Const::<7>, Const::<7>>) -> i32 {
+pub fn decode(s: &str, decoder: &OMatrix<f32, Const::<7>, Const::<7>>) -> Result<i32, &'static str> {
     let c = to_col(s);
 
-    let mappings = get_mappings();
+    let mappings = number_to_matrix_rep_mappings();
 
     for i in 0..mappings.len() {
         if decoder.mul(c).sub(&mappings[i]).norm() < 1e-6 {
-            return i as i32;
+            return Ok(i as i32);
         }
     }
 
-    -1
+    Err("No decoded value")
 }
 
-pub fn find_decoder(input: &str) -> OMatrix<f32, Const<7>, Const<7>> {
+pub fn find_decoder(input: &str) -> Result<OMatrix<f32, Const<7>, Const<7>>, &'static str> {
     let tokens = input.split(" ");
 
     let mut m = OMatrix::<f32, Const<7>, Const<7>>::from_element(0.0);
@@ -74,7 +74,6 @@ pub fn find_decoder(input: &str) -> OMatrix<f32, Const<7>, Const<7>> {
         }
     }
 
-    let mut result = OMatrix::<f32, Const<7>, Const<7>>::zeros();
 
     for five_len in five_lens {
         m.set_column(2, &five_len);
@@ -93,26 +92,24 @@ pub fn find_decoder(input: &str) -> OMatrix<f32, Const<7>, Const<7>> {
             m.set_column(4, &six_lens[p[1]]);
             m.set_column(6, &six_lens[p[2]]);
 
-            let trial_result = mult_matrix(&m);
+            let trial_inverse_decoder = get_trial_inverse_decoder(&m);
 
-            let decoder = trial_result.try_inverse().unwrap();
+            let trial_decoder = trial_inverse_decoder.try_inverse().unwrap();
 
 
             let mut bad = false;
             for token in tokens.clone() {
-                if decode(token, &decoder) == -1 {
+                if decode(token, &trial_decoder).is_err() {
                     bad = true;
                     break;
                 }
             }
 
             if !bad {
-                result = trial_result;
-                break;
+                return Ok(trial_decoder);
             }
         }
     }
 
-    let decoder = result.try_inverse().unwrap();
-    decoder
+    Err("No decoder found")
 }

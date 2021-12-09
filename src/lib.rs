@@ -1,6 +1,5 @@
 use std::ops::{Mul, Sub};
 use nalgebra::{Const, OMatrix, OVector, U1};
-
 fn number_to_matrix_rep_mappings() -> Vec<OMatrix<f32, Const<7>, U1>> {
     vec![
         OVector::<f32, Const<7>>::from_vec(vec![1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0]),
@@ -18,16 +17,14 @@ fn number_to_matrix_rep_mappings() -> Vec<OMatrix<f32, Const<7>, U1>> {
 
 
 fn get_trial_inverse_decoder(m: &OMatrix<f32, Const::<7>, Const::<7>>) -> OMatrix<f32, Const::<7>, Const::<7>> {
-    let mut d = OMatrix::<f32, Const::<7>, Const::<7>>::zeros();
     let mappings = number_to_matrix_rep_mappings();
+    let used_numbers = [0,1,3,4,6,7,9];
 
-    d.set_column(0, &mappings[0]);
-    d.set_column(1, &mappings[1]);
-    d.set_column(2, &mappings[3]);
-    d.set_column(3, &mappings[4]);
-    d.set_column(4, &mappings[6]);
-    d.set_column(5, &mappings[7]);
-    d.set_column(6, &mappings[9]);
+    let mut d = OMatrix::<f32, Const::<7>, Const::<7>>::zeros();
+    for (i, n) in used_numbers.into_iter().enumerate() {
+        d.set_column(i, &mappings[n]);
+
+    }
 
     m.mul(d.try_inverse().unwrap())
 }
